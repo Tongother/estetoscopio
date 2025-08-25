@@ -56,8 +56,8 @@ export default function Page() {
       }
       const data = (await res.json()) as ApiResult;
       setApiResult(data);
-    } catch (e: any) {
-      setApiError(e?.message || "Fallo al enviar el audio");
+    } catch (e: unknown) {
+      setApiError((e as Error)?.message || "Fallo al enviar el audio");
     } finally {
       setIsSending(false);
     }
