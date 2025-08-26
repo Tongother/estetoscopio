@@ -1,23 +1,24 @@
-// public/pcm-recorder.worklet.js
 class PCMRecorderProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
-    this._isRecording = false;
-    this.port.onmessage = (e) => {
-      if (e.data === 'start') this._isRecording = true;
-      if (e.data === 'stop')  this._isRecording = false;
+    this._recording = false;
+    this.port.onmessage = (ev) => {
+      if (ev.data === "start") this._recording = true;
+      if (ev.data === "stop") this._recording = false;
     };
   }
   process(inputs) {
-    if (!this._isRecording) return true;
+    if (!this._recording) return true;
     const input = inputs[0];
     if (input && input[0]) {
-      // Mono: canal 0
+      // canal 0 mono
       const ch0 = input[0];
-      // Copiamos para no soltar una view que se reutiliza
-      this.port.postMessage(ch0.slice(0));
+      // Copiar a un buffer propio antes de postMessage (evitas soltar referencias internas)
+      const copy = new Float32Array(ch0.length);
+      copy.set(ch0);
+      this.port.postMessage(copy, [copy.buffer]); // transfiero el ArrayBuffer
     }
-    return true; // keep alive
+    return true;
   }
 }
-registerProcessor('pcm-recorder-processor', PCMRecorderProcessor);
+registerProcessor("pcm-recorder-processor", PCMRecorderProcessor);
