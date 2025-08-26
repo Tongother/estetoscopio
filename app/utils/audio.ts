@@ -1,14 +1,7 @@
 // app/lib/audio.ts
 export const CLIENT_UPLOAD_SR = 16000; // SIEMPRE 16k en el cliente
 
-const WAV_MIMES = new Set(["audio/wav","audio/x-wav","audio/wave"]);
-
 export async function prepareAudioForUpload(fileOrBlob: Blob): Promise<File> {
-  // Si ya es WAV PCM16 mono @16k, no conviertas
-  if (WAV_MIMES.has((fileOrBlob as File).type || "") &&
-      await isWavPcm16MonoAt(fileOrBlob, CLIENT_UPLOAD_SR)) {
-    return new File([fileOrBlob], "recording.wav", { type: "audio/wav" });
-  }
   const wavBlob = await toWavPcm16Mono(fileOrBlob, CLIENT_UPLOAD_SR);
   return new File([wavBlob], "recording.wav", { type: "audio/wav" });
 }
