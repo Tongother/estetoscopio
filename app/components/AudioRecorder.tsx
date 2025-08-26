@@ -134,7 +134,7 @@ export default function AudioRecorder({ onAudioReady, targetSampleRate = 16000 }
 
       // Convertir a WAV en el main thread (decodificar y empaquetar)
       const arrayBuf = await blob.arrayBuffer();
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const ctx = new (window.AudioContext)();
       const decoded = await ctx.decodeAudioData(arrayBuf);
       const ch0 = decoded.numberOfChannels > 1 ? mixToMono(decoded) : decoded.getChannelData(0);
       const i16 = floatToI16(ch0);
