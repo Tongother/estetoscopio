@@ -1,18 +1,15 @@
 // app/lib/audio.ts
-// Convierte cualquier Blob de audio a WAV PCM16 mono @ MODEL_SR.
-// Si ya es WAV PCM16 mono @ MODEL_SR, lo deja intacto.
+export const CLIENT_UPLOAD_SR = 16000; // SIEMPRE 16k en el cliente
 
-export const MODEL_SR = 16000; // <-- cámbialo si tu modelo usa otra SR (p.ej. 16000)
+const WAV_MIMES = new Set(["audio/wav","audio/x-wav","audio/wave"]);
 
-const WAV_MIMES = new Set(["audio/wav", "audio/x-wav", "audio/wave"]);
-
-export async function prepareAudioForUpload(fileOrBlob: Blob, targetSr = MODEL_SR): Promise<File> {
-  // Si ya es WAV y cumple, no conviertas
-  if (WAV_MIMES.has((fileOrBlob as File).type || "") && await isWavPcm16MonoAt(fileOrBlob, targetSr)) {
+export async function prepareAudioForUpload(fileOrBlob: Blob): Promise<File> {
+  // Si ya es WAV PCM16 mono @16k, no conviertas
+  if (WAV_MIMES.has((fileOrBlob as File).type || "") &&
+      await isWavPcm16MonoAt(fileOrBlob, CLIENT_UPLOAD_SR)) {
     return new File([fileOrBlob], "recording.wav", { type: "audio/wav" });
   }
-  // Convierte a WAV PCM16 mono @ targetSr
-  const wavBlob = await toWavPcm16Mono(fileOrBlob, targetSr);
+  const wavBlob = await toWavPcm16Mono(fileOrBlob, CLIENT_UPLOAD_SR);
   return new File([wavBlob], "recording.wav", { type: "audio/wav" });
 }
 
@@ -23,9 +20,8 @@ export async function isWavPcm16MonoAt(file: Blob, targetSr: number): Promise<bo
   const u16 = (o: number) => dv.getUint16(o, true);
   const u32 = (o: number) => dv.getUint32(o, true);
 
-  if (str(0, 4) !== "RIFF" || str(8, 4) !== "WAVE") return false;
+  if (str(0,4)!=="RIFF" || str(8,4)!=="WAVE") return false;
 
-  // Busca chunk 'fmt '
   let off = 12;
   while (off + 8 <= dv.byteLength) {
     const id = str(off, 4);
@@ -43,54 +39,46 @@ export async function isWavPcm16MonoAt(file: Blob, targetSr: number): Promise<bo
   return false;
 }
 
-// --- Conversión principal ---
-export async function toWavPcm16Mono(blob: Blob, targetSampleRate = MODEL_SR): Promise<Blob> {
+export async function toWavPcm16Mono(blob: Blob, targetSampleRate = CLIENT_UPLOAD_SR): Promise<Blob> {
   const arrayBuf = await blob.arrayBuffer();
-  const AC: typeof AudioContext = (window).AudioContext;
-  if (!AC) throw new Error("Web Audio API no soportada en este navegador.");
-
+  const AC: typeof AudioContext = (window as any).AudioContext || (window as any).webkitAudioContext;
+  if (!AC) throw new Error("Web Audio API no soportada.");
   const ctx = new AC();
-  const audioBuf = await decodeAudio(ctx, arrayBuf);
 
-  // Mono
+  const audioBuf = await new Promise<AudioBuffer>((resolve, reject) =>
+    ctx.decodeAudioData(arrayBuf, resolve, reject)
+  );
+
   const src = audioBuf.numberOfChannels > 1 ? mixToMono(audioBuf) : audioBuf.getChannelData(0);
 
-  // Resample con OfflineAudioContext (no soporta SR < 8000)
-  const OfflineAC: typeof OfflineAudioContext = (window).OfflineAudioContext;
+  const OfflineAC: typeof OfflineAudioContext = (window as any).OfflineAudioContext || (window as any).webkitOfflineAudioContext;
   if (!OfflineAC) throw new Error("OfflineAudioContext no soportado.");
 
-  if (targetSampleRate < 8000) {
-    // Por si alguna vez usas SR raras: mejor enviar a 16000 y bajar en el server.
-    throw new Error(`targetSampleRate=${targetSampleRate} < 8000 no soportado por OfflineAudioContext`);
-  }
-
+  // targetSampleRate aquí SIEMPRE será 16000
   const length = Math.ceil(src.length * targetSampleRate / audioBuf.sampleRate);
   const offline = new OfflineAC(1, length, targetSampleRate);
 
   const srcBuf = offline.createBuffer(1, src.length, audioBuf.sampleRate);
   srcBuf.copyToChannel(src, 0);
 
-  const source = offline.createBufferSource();
-  source.buffer = srcBuf;
-  source.connect(offline.destination);
-  source.start(0);
+  const node = offline.createBufferSource();
+  node.buffer = srcBuf;
+  node.connect(offline.destination);
+  node.start(0);
 
   const resampled = await offline.startRendering();
   const pcm = resampled.getChannelData(0);
 
-  // Float32 -> Int16
   const i16 = new Int16Array(pcm.length);
   for (let i = 0; i < pcm.length; i++) {
     const s = Math.max(-1, Math.min(1, pcm[i]));
     i16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
   }
-
   return pcm16ToWav(i16, targetSampleRate);
 }
 
 function mixToMono(buf: AudioBuffer) {
-  const len = buf.length;
-  const out = new Float32Array(len);
+  const len = buf.length, out = new Float32Array(len);
   for (let ch = 0; ch < buf.numberOfChannels; ch++) {
     const data = buf.getChannelData(ch);
     for (let i = 0; i < len; i++) out[i] += data[i];
@@ -100,30 +88,18 @@ function mixToMono(buf: AudioBuffer) {
 }
 
 function pcm16ToWav(samples: Int16Array, sampleRate: number): Blob {
-  const blockAlign = 2; // mono 16-bit
-  const byteRate = sampleRate * blockAlign;
-  const dataSize = samples.length * 2;
-
+  const blockAlign = 2, byteRate = sampleRate * blockAlign, dataSize = samples.length * 2;
   const buffer = new ArrayBuffer(44 + dataSize);
   const view = new DataView(buffer);
   let p = 0;
-
   writeStr("RIFF"); write32(36 + dataSize); writeStr("WAVE");
   writeStr("fmt "); write32(16); write16(1); write16(1);
   write32(sampleRate); write32(byteRate); write16(blockAlign); write16(16);
   writeStr("data"); write32(dataSize);
-
   for (let i = 0; i < samples.length; i++, p += 2) view.setInt16(44 + p, samples[i], true);
   return new Blob([buffer], { type: "audio/wav" });
 
   function writeStr(s: string) { for (let i = 0; i < s.length; i++) view.setUint8(p++, s.charCodeAt(i)); }
   function write16(v: number) { view.setUint16(p, v, true); p += 2; }
   function write32(v: number) { view.setUint32(p, v, true); p += 4; }
-}
-
-async function decodeAudio(ctx: AudioContext, arrayBuf: ArrayBuffer): Promise<AudioBuffer> {
-  // Safari a veces falla con promise directa; hacemos fallback
-  return new Promise((resolve, reject) => {
-    ctx.decodeAudioData(arrayBuf, resolve, reject);
-  });
 }

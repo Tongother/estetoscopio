@@ -10,7 +10,7 @@ export async function classifyAudio( file: File | Blob, { fileName = "recording.
   
   if (!API_BASE) throw new Error("Falta apiBase.");
 
-  const fileForApi = await prepareAudioForUpload(file, MODEL_SR);
+  const fileForApi = await prepareAudioForUpload(file);
 
   const fd = new FormData();
   const namedFile = file instanceof File ? file : new File([file], fileName, { type: file.type || contentType });

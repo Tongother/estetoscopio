@@ -50,7 +50,7 @@ export default function AudioRecorder({ onAudioReady }: Props) {
           const rawBlob = new Blob(chunksRef.current, { type: chosen || "audio/webm" });
 
           // 🔁 Igual que en “Subir archivo”: convertir a WAV PCM16 mono @16k
-          const wavFile = await prepareAudioForUpload(rawBlob, 16000);
+          const wavFile = await prepareAudioForUpload(rawBlob);
           const wavBlob = new Blob([wavFile], { type: "audio/wav" });
 
           const url = URL.createObjectURL(wavBlob);
