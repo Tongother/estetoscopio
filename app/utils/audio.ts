@@ -41,7 +41,7 @@ export async function isWavPcm16MonoAt(file: Blob, targetSr: number): Promise<bo
 
 export async function toWavPcm16Mono(blob: Blob, targetSampleRate = CLIENT_UPLOAD_SR): Promise<Blob> {
   const arrayBuf = await blob.arrayBuffer();
-  const AC: typeof AudioContext = (window as any).AudioContext || (window as any).webkitAudioContext;
+  const AC: typeof AudioContext = (window).AudioContext;
   if (!AC) throw new Error("Web Audio API no soportada.");
   const ctx = new AC();
 
@@ -51,7 +51,7 @@ export async function toWavPcm16Mono(blob: Blob, targetSampleRate = CLIENT_UPLOA
 
   const src = audioBuf.numberOfChannels > 1 ? mixToMono(audioBuf) : audioBuf.getChannelData(0);
 
-  const OfflineAC: typeof OfflineAudioContext = (window as any).OfflineAudioContext || (window as any).webkitOfflineAudioContext;
+  const OfflineAC: typeof OfflineAudioContext = (window).OfflineAudioContext;
   if (!OfflineAC) throw new Error("OfflineAudioContext no soportado.");
 
   // targetSampleRate aquí SIEMPRE será 16000
