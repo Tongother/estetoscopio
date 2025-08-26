@@ -3,7 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Mic } from "lucide-react";
 
-// Empaqueta Int16 PCM a WAV
+/** Tipado del constructor para evitar any y errores en libs DOM */
+type AudioContextCtor = new (contextOptions?: AudioContextOptions) => AudioContext;
+
+interface WebAudioWindow extends Window {
+  AudioContext?: AudioContextCtor;
+  webkitAudioContext?: AudioContextCtor;
+}
+
+/** Empaqueta Int16 PCM a WAV mono 16-bit */
 function pcm16ToWav(samples: Int16Array, sampleRate: number): Blob {
   const blockAlign = 2; // mono 16-bit
   const byteRate = sampleRate * blockAlign;
@@ -16,9 +24,12 @@ function pcm16ToWav(samples: Int16Array, sampleRate: number): Blob {
   const write16 = (v: number) => { view.setUint16(p, v, true); p += 2; };
   const write32 = (v: number) => { view.setUint32(p, v, true); p += 4; };
 
+  // RIFF / WAVE header
   writeStr("RIFF"); write32(36 + dataSize); writeStr("WAVE");
+  // fmt chunk
   writeStr("fmt "); write32(16); write16(1); write16(1);
   write32(sampleRate); write32(byteRate); write16(blockAlign); write16(16);
+  // data chunk
   writeStr("data"); write32(dataSize);
 
   for (let i = 0; i < samples.length; i++, p += 2) view.setInt16(44 + p, samples[i], true);
@@ -27,6 +38,7 @@ function pcm16ToWav(samples: Int16Array, sampleRate: number): Blob {
 
 type Props = {
   onAudioReady: (audioBlob: Blob, audioUrl: string) => void;
+  /** SR del AudioContext; el backend ya remuestrea a 1150 Hz */
   targetSampleRate?: number; // default 16000
 };
 
@@ -60,10 +72,15 @@ export default function AudioRecorder({ onAudioReady, targetSampleRate = 16000 }
 
   const startRecording = async () => {
     try {
-      const AC: typeof AudioContext = (window as any).AudioContext || (window as any).webkitAudioContext;
-      const ac = new AC({ sampleRate: targetSampleRate }); // pedimos 16k al crear el contexto
+      const win = window as WebAudioWindow;
+      const AC = win.AudioContext ?? win.webkitAudioContext;
+      if (!AC) throw new Error("Web Audio API no soportada en este navegador.");
+
+      // Pedimos 16 kHz (o el que definas); el backend adapta a 1150 Hz
+      const ac = new AC({ sampleRate: targetSampleRate });
       acRef.current = ac;
 
+      // IMPORTANTE: este archivo debe existir en /public
       await ac.audioWorklet.addModule("/pcm-recorder.worklet.js");
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -73,7 +90,7 @@ export default function AudioRecorder({ onAudioReady, targetSampleRate = 16000 }
       const node = new AudioWorkletNode(ac, "pcm-recorder-processor");
       nodeRef.current = node;
 
-      // recolectar buffers desde el worklet
+      // Recolectar buffers desde el worklet
       chunksRef.current = [];
       node.port.onmessage = (e) => {
         const f32 = e.data as Float32Array;
@@ -81,9 +98,9 @@ export default function AudioRecorder({ onAudioReady, targetSampleRate = 16000 }
       };
 
       source.connect(node);
-      node.connect(ac.destination); // o ac.createGain() si no quieres monitorear
+      node.connect(ac.destination); // si no quieres monitoreo, conecta a un GainNode sin salida
 
-      node.port.postMessage('start');
+      node.port.postMessage("start");
       setIsRecording(true);
       setRecordingTime(0);
 
@@ -91,7 +108,7 @@ export default function AudioRecorder({ onAudioReady, targetSampleRate = 16000 }
         setRecordingTime((t) => t + 1);
       }, 1000);
     } catch (err) {
-      console.error("Mic/worklet error:", err);
+      console.error("Mic/Worklet error:", err);
       cleanup();
     }
   };
@@ -102,7 +119,7 @@ export default function AudioRecorder({ onAudioReady, targetSampleRate = 16000 }
     if (intervalRef.current !== null) window.clearInterval(intervalRef.current);
 
     try {
-      nodeRef.current?.port.postMessage('stop');
+      nodeRef.current?.port.postMessage("stop");
 
       // Concatenar Float32 y convertir a Int16
       const totalLen = chunksRef.current.reduce((s, a) => s + a.length, 0);
@@ -110,7 +127,6 @@ export default function AudioRecorder({ onAudioReady, targetSampleRate = 16000 }
       let off = 0;
       for (const c of chunksRef.current) { mono.set(c, off); off += c.length; }
 
-      // clamp [-1,1] y map a int16
       const i16 = new Int16Array(mono.length);
       for (let i = 0; i < mono.length; i++) {
         const s = Math.max(-1, Math.min(1, mono[i]));
@@ -156,7 +172,9 @@ export default function AudioRecorder({ onAudioReady, targetSampleRate = 16000 }
           </div>
         )}
       </div>
-      <p className="text-xs text-slate-500">Salida: WAV PCM16 mono @ 16 kHz (el backend ya lo adapta a 1150 Hz).</p>
+      <p className="text-xs text-slate-500">
+        Salida: WAV PCM16 mono @ {targetSampleRate} Hz (el backend re-muestrea a 1150 Hz).
+      </p>
     </div>
   );
 }
