@@ -9,18 +9,14 @@ import {
   Shield,
   Users,
 } from "lucide-react";
+
+//Components
 import Navigation from "./components/Navegation";
 import AudioRecorder from "./components/AudioRecorder";
 import AudioPlayer from "./components/AudioPlayer";
 
-type ApiResult = {
-  ok: boolean;
-  sample_rate: number;
-  window_size: number;
-  start_index: number;
-  results: { label: string; value: number }[];
-  anomaly: number;
-};
+//Libs
+import { classifyAudio } from "./lib/edge-impulse-classifier";
 
 export default function Page() {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
@@ -31,32 +27,18 @@ export default function Page() {
 
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const API_BASE = process.env.NEXT_PUBLIC_ESTETO_API || "";
-
-  async function classifyFile(file: File | Blob) {
-    const fd = new FormData();
-    // El backend espera el campo 'file'
-    // Si es Blob (grabación), le damos un nombre por si algún proxy lo requiere.
-    const namedFile =
-      file instanceof File ? file : new File([file], "recording.wav", { type: file.type || "audio/wav" });
-    fd.append("file", namedFile);
-
+  async function handleClassify(file: File | Blob) {
     setIsSending(true);
     setApiError(null);
     setApiResult(null);
 
     try {
-      const res = await fetch(`${API_BASE}/classify`, {
-        method: "POST",
-        body: fd,
+      const controller = new AbortController(); // opcional (para cancelar)
+      const result: ApiResult = await classifyAudio(file, {
+        signal: controller.signal,
       });
-      if (!res.ok) {
-        const msg = await res.text();
-        throw new Error(`API ${res.status}: ${msg || "Error"}`);
-      }
-      const data = (await res.json()) as ApiResult;
-      setApiResult(data);
-    } catch (e: unknown) {
+      setApiResult(result);
+    } catch (e) {
       setApiError((e as Error)?.message || "Fallo al enviar el audio");
     } finally {
       setIsSending(false);
@@ -75,17 +57,14 @@ export default function Page() {
     setAudioBlob(f);
     setAudioUrl(url);
 
-    // Enviar en caliente
-    await classifyFile(f);
+    await handleClassify(f);
   };
 
   // 2) Grabación: guarda blob y vista previa
   const onAudioReady = (b: Blob, url: string) => {
     setAudioBlob(b);
     setAudioUrl(url);
-    // Si quieres enviar automáticamente también desde la grabación,
-    // descomenta la siguiente línea:
-    // classifyFile(b);
+    handleClassify(b);
   };
 
   const onDownload = () => {
@@ -362,7 +341,7 @@ export default function Page() {
                 {/* Opcional: botón Analizar para una grabación ya hecha */}
                 {audioBlob && !isSending && (
                   <button
-                    onClick={() => classifyFile(audioBlob)}
+                    onClick={() => handleClassify(audioBlob)}
                     className="rounded-md bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700"
                   >
                     Analizar grabación actual

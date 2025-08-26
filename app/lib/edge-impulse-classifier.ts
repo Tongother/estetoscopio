@@ -1,18 +1,34 @@
-// lib/esteto.ts
-export async function classifyHeartAudio(file: File) {
+import { prepareAudioForUpload } from "../utils/audio";
+const API_BASE = process.env.NEXT_PUBLIC_ESTETO_API || "";
+const MODEL_SR = 1150;
+
+/**
+ * Envía un File/Blob a /classify y devuelve el resultado tipado.
+ * No maneja estados de UI: solo lanza errores o retorna datos.
+ */
+export async function classifyAudio( file: File | Blob, { fileName = "recording.wav", contentType = "audio/wav", signal }: ClassifyOptions): Promise<ApiResult> {
+  
+  if (!API_BASE) throw new Error("Falta apiBase.");
+
+  const fileForApi = await prepareAudioForUpload(file, MODEL_SR);
+
   const fd = new FormData();
-  fd.append("file", file);
-  const res = await fetch("https://backesteto.onrender.com/classify", {
+  const namedFile = file instanceof File ? file : new File([file], fileName, { type: file.type || contentType });
+  
+  fd.append("file", namedFile);
+
+  const res = await fetch(`${API_BASE}/classify`, {
     method: "POST",
     body: fd,
+    signal,
   });
-  if (!res.ok) throw new Error("API error");
-  return res.json() as Promise<{
-    ok: boolean;
-    sample_rate: number;
-    window_size: number;
-    start_index: number;
-    results: { label: string; value: number }[];
-    anomaly: number;
-  }>;
+
+  if (!res.ok) {
+    const msg = await res.text().catch(() => "");
+    throw new Error(`API ${res.status}: ${msg || "Error"}`);
+  }
+
+  // Si tu backend devuelve un envoltorio, ajusta aquí
+  const data = (await res.json()) as ApiResult;
+  return data;
 }
