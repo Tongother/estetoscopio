@@ -84,7 +84,7 @@ function mixToMono(buf: AudioBuffer): Float32Array {
 /** decodeAudioData que funciona en navegadores con callback/promesa */
 async function decodeAudio(ctx: AudioContext, arrayBuf: ArrayBuffer): Promise<AudioBuffer> {
   return await new Promise<AudioBuffer>((resolve, reject) => {
-    const r = (ctx as any).decodeAudioData(arrayBuf, resolve, reject);
+    const r = (ctx).decodeAudioData(arrayBuf, resolve, reject);
     if (r && typeof (r as Promise<AudioBuffer>).then === "function") {
       (r as Promise<AudioBuffer>).then(resolve, reject);
     }
