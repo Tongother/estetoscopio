@@ -1,6 +1,4 @@
-import { prepareAudioForUpload } from "../utils/audio";
 const API_BASE = process.env.NEXT_PUBLIC_ESTETO_API || "";
-const MODEL_SR = 1150;
 
 /**
  * Envía un File/Blob a /classify y devuelve el resultado tipado.
@@ -9,8 +7,6 @@ const MODEL_SR = 1150;
 export async function classifyAudio( file: File | Blob, { fileName = "recording.wav", contentType = "audio/wav", signal }: ClassifyOptions): Promise<ApiResult> {
   
   if (!API_BASE) throw new Error("Falta apiBase.");
-
-  const fileForApi = await prepareAudioForUpload(file);
 
   const fd = new FormData();
   const namedFile = file instanceof File ? file : new File([file], fileName, { type: file.type || contentType });
