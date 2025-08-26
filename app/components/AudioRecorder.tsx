@@ -2,8 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Mic } from "lucide-react";
+// Usa la misma utilidad que en el flujo de “Subir archivo”
+import { prepareAudioForUpload } from "../utils/audio";
 
 type Props = {
+  // onAudioReady recibe el BLOB ya convertido (WAV PCM16 mono @16k) + URL para preview
   onAudioReady: (audioBlob: Blob, audioUrl: string) => void;
 };
 
@@ -23,7 +26,17 @@ export default function AudioRecorder({ onAudioReady }: Props) {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+
+      // Elegir el mejor mimeType disponible
+      const preferred: string[] = [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/ogg;codecs=opus",
+      ];
+      const chosen =
+        preferred.find((m) => MediaRecorder.isTypeSupported(m)) || "";
+
+      const mediaRecorder = new MediaRecorder(stream, chosen ? { mimeType: chosen } : undefined);
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
 
@@ -31,11 +44,23 @@ export default function AudioRecorder({ onAudioReady }: Props) {
         if (event.data.size > 0) chunksRef.current.push(event.data);
       };
 
-      mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(chunksRef.current, { type: "audio/wav" });
-        const audioUrl = URL.createObjectURL(audioBlob);
-        onAudioReady(audioBlob, audioUrl);
-        stream.getTracks().forEach((t) => t.stop());
+      mediaRecorder.onstop = async () => {
+        try {
+          // Blob crudo de la grabación (webm/ogg/lo que toque)
+          const rawBlob = new Blob(chunksRef.current, { type: chosen || "audio/webm" });
+
+          // 🔁 Igual que en “Subir archivo”: convertir a WAV PCM16 mono @16k
+          const wavFile = await prepareAudioForUpload(rawBlob, 16000);
+          const wavBlob = new Blob([wavFile], { type: "audio/wav" });
+
+          const url = URL.createObjectURL(wavBlob);
+          onAudioReady(wavBlob, url);
+        } catch (e) {
+          console.error("Error convirtiendo audio grabado:", e);
+        } finally {
+          // Siempre liberamos el micrófono
+          stream.getTracks().forEach((t) => t.stop());
+        }
       };
 
       mediaRecorder.start();
