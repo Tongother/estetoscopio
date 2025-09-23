@@ -1,6 +1,15 @@
 "use client";
 
+// React and Next
 import { useRef, useState } from "react";
+
+//Components
+import Navigation from "./components/Navegation";
+import AudioRecorder from "./components/main/AudioRecorder";
+import AudioPlayer from "./components/main/AudioPlayer";
+
+//Libs
+import { classifyAudio } from "./lib/edge-impulse-classifier";
 import {
   AlertTriangle,
   BookOpen,
@@ -9,14 +18,6 @@ import {
   Shield,
   Users,
 } from "lucide-react";
-
-//Components
-import Navigation from "./components/Navegation";
-import AudioRecorder from "./components/AudioRecorder";
-import AudioPlayer from "./components/AudioPlayer";
-
-//Libs
-import { classifyAudio } from "./lib/edge-impulse-classifier";
 
 export default function Page() {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
