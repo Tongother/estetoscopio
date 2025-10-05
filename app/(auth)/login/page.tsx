@@ -26,7 +26,7 @@ const Login = async({ searchParams }: Props) => {
     "use server"
 
     try{
-      const response = await auth.api.signInEmail({
+      await auth.api.signInEmail({
         body: {
           email: formdata.get("user-email") as string,
           password: formdata.get("user-password") as string,
