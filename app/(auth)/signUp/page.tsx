@@ -19,7 +19,7 @@ export const metadata = {
   description: 'Página de inicio de sesión',
 }
 
-const Login = ({ searchParams }: { searchParams: { error?: string } }) =>{
+const Login = (searchParams: searchParamsProps) =>{
 
   const registerAction = async (formdata: FormData) => {
     "use server"
@@ -72,7 +72,7 @@ const Login = ({ searchParams }: { searchParams: { error?: string } }) =>{
   }
 
   // Función para mostrar el mensaje de error
-  const getErrorMessage = (error: string) => {
+  const getErrorMessage = (error: string | string[] | undefined) => {
     switch(error) {
       case 'invalid_password':
         return 'La contraseña no cumple con los requisitos de seguridad.';
@@ -82,6 +82,9 @@ const Login = ({ searchParams }: { searchParams: { error?: string } }) =>{
         return 'Ha ocurrido un error inesperado';
     }
   }
+
+  const errorMessage = Array.isArray(searchParams.error) ? searchParams.error[0] : searchParams.error;
+  const successMessage = Array.isArray(searchParams.message) ? searchParams.message[0] : searchParams.message;
 
   return (
     <main className="w-dvw h-dvh flex justify-center items-center">

@@ -18,7 +18,7 @@ export const metadata = {
   description: 'Página de inicio de sesión',
 }
 
-const Login = ({ searchParams }: { searchParams: { error?: string, message?: string } }) => {
+const Login = (searchParams: searchParamsProps) => {
 
   const loginAction = async (formdata: FormData) => {
     "use server"
@@ -52,7 +52,7 @@ const Login = ({ searchParams }: { searchParams: { error?: string, message?: str
   }
 
   // Función para mostrar el mensaje de error
-  const getErrorMessage = (error: string) => {
+  const getErrorMessage = (error: string | string[] | undefined) => {
     switch(error) {
       case 'invalid_credentials':
         return 'Email o contraseña incorrectos, verifica tus datos.';
@@ -65,6 +65,9 @@ const Login = ({ searchParams }: { searchParams: { error?: string, message?: str
     }
   }
 
+  const errorMessage = Array.isArray(searchParams.error) ? searchParams.error[0] : searchParams.error;
+  const successMessage = Array.isArray(searchParams.message) ? searchParams.message[0] : searchParams.message;
+
   return (
     <main className="w-dvw h-dvh flex justify-center items-center">
       <div className="p-8 shadow-xl rounded-3xl">
@@ -73,14 +76,14 @@ const Login = ({ searchParams }: { searchParams: { error?: string, message?: str
         {/* Mostrar mensaje de error si existe */}
         {searchParams.error && (
           <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-            {getErrorMessage(searchParams.error)}
+            {getErrorMessage(errorMessage)}
           </div>
         )}
 
         { /* Mostrar mensaje de éxito y mencionar se ha enviado el correo de verificación */}
         {searchParams.message && (
           <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
-            {searchParams.message}
+            {successMessage}
           </div>
         )}
 
