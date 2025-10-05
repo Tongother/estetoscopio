@@ -42,26 +42,14 @@ const Login = async({ searchParams }: Props) =>{
       redirect("/signUp?error=invalid_password");
 
     try{
-      const response =  await auth.api.signUpEmail({
+      await auth.api.signUpEmail({
         body: {
           name: name,
           email: email,
           password: password,
+          callbackURL: "/login?message=account_created"
         }
       })
-
-      console.log(response);
-
-      if(!response.user)
-        redirect("/signUp?error=server_error");
-
-      sendEmail({
-        to: email,
-        subject: "Bienvenido a Estetoscopio",
-        html: welcomeTemplate(name)
-      })
-
-      redirect("/login?message=account_created");
     }catch(error: unknown){
       const err = error as { status?: number, statusCode?: number };
       if(err.status === 400 || err.statusCode === 400){
@@ -71,7 +59,15 @@ const Login = async({ searchParams }: Props) =>{
         // Error del servidor
         redirect("/signUp?error=server_error");
       }
-    } 
+    }
+
+    sendEmail({
+      to: email,
+      subject: "Bienvenido a Estetoscopio",
+      html: welcomeTemplate(name)
+    })
+
+    redirect("/login?message=account_created");
   }
 
   // Función para mostrar el mensaje de error

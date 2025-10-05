@@ -34,9 +34,6 @@ const Login = async({ searchParams }: Props) => {
         },
         headers: await headers(),
       })
-
-      if(response.user && response.token)
-        redirect("/");
       
     }catch(error: unknown){
       const err = error as { status?: number, statusCode?: number };
@@ -51,6 +48,8 @@ const Login = async({ searchParams }: Props) => {
         redirect("/login?error=server_error");
       }
     }
+    
+    redirect("/");
   }
 
   // Función para mostrar el mensaje de error
