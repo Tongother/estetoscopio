@@ -18,7 +18,7 @@ export const metadata = {
   description: 'Página de inicio de sesión',
 }
 
-const Login = (searchParams: searchParamsProps) => {
+const Login = ({ searchParams }: Props) => {
 
   const loginAction = async (formdata: FormData) => {
     "use server"
