@@ -45,9 +45,11 @@ const Login = ({ searchParams }: Props) =>{
           name: name,
           email: email,
           password: password,
-          callbackURL: "/login?message=" + encodeURIComponent("Cuenta creada exitosamente, se ha enviado un correo de verificación, por favor verifica tu email para iniciar sesión.")
+          callbackURL: "/login?message=account_created"
         }
       })
+
+      console.log(response);
 
       if(!(response.user && response.token))
         redirect("/signUp?error=server_error");
@@ -57,8 +59,8 @@ const Login = ({ searchParams }: Props) =>{
         subject: "Bienvenido a Estetoscopio",
         html: welcomeTemplate(name)
       })
-        
-      redirect("/login?message=" + encodeURIComponent("Cuenta creada exitosamente, se ha enviado un correo de verificación, por favor verifica tu email para iniciar sesión."));
+
+      redirect("/login?message=account_created");
     }catch(error: unknown){
       const err = error as { status?: number, statusCode?: number };
       if(err.status === 400 || err.statusCode === 400){
@@ -72,7 +74,7 @@ const Login = ({ searchParams }: Props) =>{
   }
 
   // Función para mostrar el mensaje de error
-  const getErrorMessage = (error: string | string[] | undefined) => {
+  const getStatusMessage = (error: string | string[] | undefined) => {
     switch(error) {
       case 'invalid_password':
         return 'La contraseña no cumple con los requisitos de seguridad.';
@@ -84,7 +86,6 @@ const Login = ({ searchParams }: Props) =>{
   }
 
   const errorMessage = Array.isArray(searchParams.error) ? searchParams.error[0] : searchParams.error;
-  const successMessage = Array.isArray(searchParams.message) ? searchParams.message[0] : searchParams.message;
 
   return (
     <main className="w-dvw h-dvh flex justify-center items-center">
@@ -93,9 +94,10 @@ const Login = ({ searchParams }: Props) =>{
 
         {searchParams.error && (
           <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-            {getErrorMessage(searchParams.error)}
+            {getStatusMessage(errorMessage)}
           </div>
         )}
+        
         <form className="flex flex-col justify-center items-center gap-4" action={registerAction}>
 
           <div className="flex flex-col w-xl gap-2">

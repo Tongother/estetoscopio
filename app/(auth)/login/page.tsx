@@ -52,8 +52,10 @@ const Login = ({ searchParams }: Props) => {
   }
 
   // Función para mostrar el mensaje de error
-  const getErrorMessage = (error: string | string[] | undefined) => {
+  const getStatusMessage = (error: string | string[] | undefined) => {
     switch(error) {
+      case "account_created":
+        return "Cuenta creada exitosamente, se ha enviado un correo de verificación, por favor verifica tu email para iniciar sesión.";
       case 'invalid_credentials':
         return 'Email o contraseña incorrectos, verifica tus datos.';
       case 'unauthorized':
@@ -76,7 +78,7 @@ const Login = ({ searchParams }: Props) => {
         {/* Mostrar mensaje de error si existe */}
         {searchParams.error && (
           <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-            {getErrorMessage(errorMessage)}
+            {getStatusMessage(errorMessage)}
           </div>
         )}
 
