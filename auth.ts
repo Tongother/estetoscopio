@@ -9,10 +9,14 @@ import {
   verification as verificationTokensTable,
 } from "@/db/schema";
 import { nextCookies } from "better-auth/next-js";
+import { sendEmail } from "./mail/helpers";
+import { emailVerificationTemplate } from "./mail/templates";
 
 export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET!,
   baseURL: process.env.APP_URL!,
+
+  advanced: { useSecureCookies: true },
 
   basePath: "/api/auth",
   
@@ -29,6 +33,17 @@ export const auth = betterAuth({
 
   emailAndPassword: {
     enabled: true,
+    requireEmailVerification: true,
+  },
+
+  emailVerification: {
+    sendVerificationEmail: async ( { user, url, token }, request) => {
+      await sendEmail({
+        to: user.email,
+        subject: "Verify your email address",
+        html: emailVerificationTemplate(url, user.name),
+      });
+    },
   },
 
   socialProviders: {

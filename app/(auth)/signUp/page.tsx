@@ -1,8 +1,9 @@
 // Next JS y React
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 // Libs
-import { authClient } from "@/auth-client";
+import { auth } from "@/auth";
 
 // Funciones OAuth
 import { signInWithGoogle } from "@/app/lib/signInOAuth";
@@ -10,54 +11,95 @@ import { signInWithGoogle } from "@/app/lib/signInOAuth";
 // Components
 import OAuthCard from "@/app/components/login/OAuthCard";
 import SubmitButton from "@/app/components/login/SubmitButton";
+import { sendEmail } from "@/mail/helpers";
+import { welcomeTemplate } from "@/mail/templates";
 
 export const metadata = {
   title: 'Iniciar sesión',
   description: 'Página de inicio de sesión',
 }
 
-const Login = () =>{
+const Login = ({ searchParams }: { searchParams: { error?: string } }) =>{
 
   const registerAction = async (formdata: FormData) => {
     "use server"
 
-    const { data, error } = await authClient.signUp.email({
-      email: formdata.get("user-email") as string,
-      password: formdata.get("user-password") as string,
-      name: formdata.get("user-name") as string,
-      callbackURL: "/",
-    }, {
-      onRequest: (ctx) => {
-        console.log("Request", ctx)
-      },
-      onSuccess: (ctx) => {
-        console.log("Success", ctx)
-      },
-      onError: (ctx) => {
-        console.log("Error", ctx)
+    const name = formdata.get("user-name") as string;
+    const email = formdata.get("user-email") as string;
+    const password = formdata.get("user-password") as string;
+
+
+    // Validación de contraseña
+    const hasMinLength = password.length >= 10;
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasUpperCase = /[A-Z]/.test(password);
+    const numberCount = (password.match(/\d/g) || []).length;
+    const specialCharCount = (password.match(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/g) || []).length;
+    
+    if (!hasMinLength || !hasLowerCase || !hasUpperCase || numberCount < 2 || specialCharCount < 2)
+      redirect("/signUp?error=invalid_password");
+
+    const response =  await auth.api.signUpEmail({
+      body: {
+        name: name,
+        email: email,
+        password: password,
+        callbackURL: "/login?message=" + encodeURIComponent("Cuenta creada exitosamente, se ha enviado un correo de verificación, por favor verifica tu email para iniciar sesión.")
       }
     })
+
+    if(response.user && response.token){
+      sendEmail({
+        to: email,
+        subject: "Bienvenido a Estetoscopio",
+        html: welcomeTemplate(name)
+      })
+      
+      redirect("/login?message=" + encodeURIComponent("Cuenta creada exitosamente, se ha enviado un correo de verificación, por favor verifica tu email para iniciar sesión."));
+    }
+  }
+
+  // Función para mostrar el mensaje de error
+  const getErrorMessage = (error: string) => {
+    switch(error) {
+      case 'invalid_password':
+        return 'La contraseña no cumple con los requisitos de seguridad.';
+      case 'server_error':
+        return 'Error del servidor, inténtalo más tarde.';
+      default:
+        return 'Ha ocurrido un error inesperado';
+    }
   }
 
   return (
     <main className="w-dvw h-dvh flex justify-center items-center">
       <div className="p-8 shadow-xl rounded-3xl">
         <h1 className="text-center p-2 text-2xl font-semibold"> Registro </h1>
+
+        {searchParams.error && (
+          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+            {getErrorMessage(searchParams.error)}
+          </div>
+        )}
         <form className="flex flex-col justify-center items-center gap-4" action={registerAction}>
 
           <div className="flex flex-col w-xl gap-2">
             <label htmlFor="user" className="text-lg"> Ingrese su usuario </label>
-            <input type="text" name="user-name" id="user" className="p-2 rounded-md bg-gray-100 shadow" />
+            <input type="text" name="user-name" id="user" required className="p-2 rounded-md bg-gray-100 shadow" />
           </div>
 
           <div className="flex flex-col w-xl gap-2">
             <label htmlFor="email" className="text-lg"> Ingrese su email </label>
-            <input type="email" name="user-email" id="email" className="p-2 rounded-md bg-gray-100 shadow" />
+            <input type="email" name="user-email" id="email" placeholder="ejemplo@correo.com" required className="p-2 rounded-md bg-gray-100 shadow" />
           </div>
 
           <div className="flex flex-col w-xl gap-2">
             <label htmlFor="password" className="text-lg"> Ingrese su contraseña </label>
-            <input type="password" name="user-password" id="password" className="p-2 rounded-md bg-gray-100 shadow" />
+            <input type="password" name="user-password" id="password" 
+              className="p-2 rounded-md bg-gray-100 shadow" 
+              required
+            />
+            <small className="text-gray-700">Mínimo 10 caracteres, una mayúscula, una minúscula, 2 números y 2 caracteres especiales, ejemplo: A1bc13!jH!</small>
           </div>
           
           <SubmitButton text="Registrarse" />
