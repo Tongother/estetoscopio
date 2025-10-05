@@ -53,7 +53,7 @@ const Login = async({ searchParams }: Props) =>{
 
       console.log(response);
 
-      if(!(response.user && response.token))
+      if(!(response.user))
         redirect("/signUp?error=server_error");
 
       sendEmail({
