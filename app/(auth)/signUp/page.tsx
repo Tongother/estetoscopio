@@ -39,24 +39,36 @@ const Login = ({ searchParams }: { searchParams: { error?: string } }) =>{
     if (!hasMinLength || !hasLowerCase || !hasUpperCase || numberCount < 2 || specialCharCount < 2)
       redirect("/signUp?error=invalid_password");
 
-    const response =  await auth.api.signUpEmail({
-      body: {
-        name: name,
-        email: email,
-        password: password,
-        callbackURL: "/login?message=" + encodeURIComponent("Cuenta creada exitosamente, se ha enviado un correo de verificación, por favor verifica tu email para iniciar sesión.")
-      }
-    })
+    try{
+      const response =  await auth.api.signUpEmail({
+        body: {
+          name: name,
+          email: email,
+          password: password,
+          callbackURL: "/login?message=" + encodeURIComponent("Cuenta creada exitosamente, se ha enviado un correo de verificación, por favor verifica tu email para iniciar sesión.")
+        }
+      })
 
-    if(response.user && response.token){
+      if(!(response.user && response.token))
+        redirect("/signUp?error=server_error");
+
       sendEmail({
         to: email,
         subject: "Bienvenido a Estetoscopio",
         html: welcomeTemplate(name)
       })
-      
+        
       redirect("/login?message=" + encodeURIComponent("Cuenta creada exitosamente, se ha enviado un correo de verificación, por favor verifica tu email para iniciar sesión."));
-    }
+    }catch(error: unknown){
+      const err = error as { status?: number, statusCode?: number };
+      if(err.status === 400 || err.statusCode === 400){
+        // Email ya registrado
+        redirect("/signUp?error=invalid_credentials");
+      } else {
+        // Error del servidor
+        redirect("/signUp?error=server_error");
+      }
+    } 
   }
 
   // Función para mostrar el mensaje de error

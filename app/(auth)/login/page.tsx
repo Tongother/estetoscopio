@@ -36,11 +36,12 @@ const Login = ({ searchParams }: { searchParams: { error?: string, message?: str
       if(response.user && response.token)
         redirect("/");
       
-    }catch(error: any){
-      if(error.status === 400 || error.statusCode === 400){
+    }catch(error: unknown){
+      const err = error as { status?: number, statusCode?: number };
+      if(err.status === 400 || err.statusCode === 400){
         // Email o contraseña inválidos
         redirect("/login?error=invalid_credentials");
-      } else if(error.status === 401 || error.statusCode === 401){
+      } else if(err.status === 401 || err.statusCode === 401){
         // Credenciales incorrectas
         redirect("/login?error=unauthorized");
       } else {
