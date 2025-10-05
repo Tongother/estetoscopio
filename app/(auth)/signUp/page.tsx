@@ -47,13 +47,12 @@ const Login = async({ searchParams }: Props) =>{
           name: name,
           email: email,
           password: password,
-          callbackURL: "/login?message=account_created"
         }
       })
 
       console.log(response);
 
-      if(!(response.user))
+      if(!response.user)
         redirect("/signUp?error=server_error");
 
       sendEmail({
