@@ -19,7 +19,9 @@ export const metadata = {
   description: 'Página de inicio de sesión',
 }
 
-const Login = ({ searchParams }: Props) =>{
+const Login = async({ searchParams }: Props) =>{
+
+  const { message, error } = await searchParams;
 
   const registerAction = async (formdata: FormData) => {
     "use server"
@@ -85,19 +87,19 @@ const Login = ({ searchParams }: Props) =>{
     }
   }
 
-  const errorMessage = Array.isArray(searchParams.error) ? searchParams.error[0] : searchParams.error;
+  const errorMessage = Array.isArray(error) ? error[0] : error;
 
   return (
     <main className="w-dvw h-dvh flex justify-center items-center">
       <div className="p-8 shadow-xl rounded-3xl">
         <h1 className="text-center p-2 text-2xl font-semibold"> Registro </h1>
 
-        {searchParams.error && (
+        {error && (
           <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
             {getStatusMessage(errorMessage)}
           </div>
         )}
-        
+
         <form className="flex flex-col justify-center items-center gap-4" action={registerAction}>
 
           <div className="flex flex-col w-xl gap-2">

@@ -1,6 +1,6 @@
 type Props = {
-  searchParams: {
+  searchParams: Promise<{
     error?: string | string[];
     message?: string | string[];
-  }
+  }>
 }

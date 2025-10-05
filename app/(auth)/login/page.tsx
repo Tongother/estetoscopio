@@ -18,7 +18,9 @@ export const metadata = {
   description: 'Página de inicio de sesión',
 }
 
-const Login = ({ searchParams }: Props) => {
+const Login = async({ searchParams }: Props) => {
+
+  const { message, error } = await searchParams;
 
   const loginAction = async (formdata: FormData) => {
     "use server"
@@ -67,8 +69,8 @@ const Login = ({ searchParams }: Props) => {
     }
   }
 
-  const errorMessage = Array.isArray(searchParams.error) ? searchParams.error[0] : searchParams.error;
-  const successMessage = Array.isArray(searchParams.message) ? searchParams.message[0] : searchParams.message;
+  const errorMessage = Array.isArray(error) ? error[0] : error;
+  const successMessage = Array.isArray(message) ? message[0] : message;
 
   return (
     <main className="w-dvw h-dvh flex justify-center items-center">
@@ -76,14 +78,14 @@ const Login = ({ searchParams }: Props) => {
         <h1 className="text-center p-2 text-2xl font-semibold"> Inició de sesión </h1>
         
         {/* Mostrar mensaje de error si existe */}
-        {searchParams.error && (
+        {error && (
           <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
             {getStatusMessage(errorMessage)}
           </div>
         )}
 
         { /* Mostrar mensaje de éxito y mencionar se ha enviado el correo de verificación */}
-        {searchParams.message && (
+        {message && (
           <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
             {successMessage}
           </div>
